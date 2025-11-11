@@ -1,0 +1,207 @@
+---
+output: 
+  html_document:
+    theme: flatly
+params:
+  results_dir: "results"
+  config_path: "config.yaml"
+  mapping_path: "resources/header_map.tsv"
+  tree_name: NULL
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(jsonlite)
+library(tibble)
+library(dplyr)
+library(purrr)
+library(yaml)
+library(readr)
+library(rlang)
+library(ape)
+library(knitr)
+```
+
+```{r config data, include=FALSE}
+# get config file and specs
+cfg <- tryCatch(
+  yaml::read_yaml(params$config_path),
+  error = function(e) NULL
+)
+tree_specs <- cfg$trees %||% list()
+tree_name <- params$tree_name %||% NULL
+results_dir <- params$results_dir
+```
+
+```{r mapping helpers, include=FALSE}
+
+# map sanitized labels to original names
+mapping_tbl <- tryCatch(
+  readr::read_tsv(
+    params$mapping_path,
+    col_names = c("sanitized", "original"),
+    show_col_types = FALSE
+  ),
+  error = function(e) {
+    tibble(
+      sanitized = character(),
+      original = character()
+    )
+  }
+)
+lookup <- setNames(mapping_tbl$original, mapping_tbl$sanitized)
+
+escape_md <- function(text) {
+  if (length(text) == 0) return(text)
+  text <- as.character(text)
+  text <- gsub("\\\\", "\\\\\\\\", text)
+  gsub("([*_`|])", "\\\\\\1", text, perl = TRUE)
+} # goes in translate_label
+translate_label <- function(x, escape = TRUE) {
+  label <- lookup[x]
+  label <- unname(label)[1]
+  if (is.na(label) || length(label) == 0) {
+    label <- x
+  }
+  if (escape) escape_md(label) else label
+} # parses markdown-sensitive characters in labels
+```
+
+```{r read tree file helper, include=FALSE}
+read_tree_file <- function(path) {
+  if (!file.exists(path)) return(NULL)
+  first <- tryCatch(readLines(path, n = 1), error = function(e) character())
+  if (length(first) == 0) return(NULL)
+  reader <- if (grepl("^#? *NEXUS", toupper(first[1]))) {
+    ape::read.nexus
+  } else {
+    ape::read.tree
+  }
+  tree_obj <- tryCatch(reader(path), error = function(e) NULL)
+  if (inherits(tree_obj, "multiPhylo")) tree_obj <- tree_obj[[1]]
+  tree_obj
+} # can read nexus or newick
+```
+
+```{r stats table helpers, include=FALSE}
+
+kv_table <- function(x, category) {
+  if (is.null(x)) {
+    return(tibble(
+      category = character(),
+      metric = character(),
+      value = character()
+    ))
+  }
+  flat <- unlist(x, recursive = TRUE, use.names = TRUE)
+  if (length(flat) == 0) {
+    return(tibble(
+      category = character(),
+      metric = character(),
+      value = character()
+    ))
+  }
+  tibble(
+    category = category,
+    metric = names(flat),
+    value = as.character(flat)
+  )
+} # makes stat/spec table
+
+read_stats <- function(tree_name) {
+  path <- file.path(results_dir, tree_name, "stats.json")
+  if (!file.exists(path)) return(NULL)
+  tryCatch(fromJSON(path), error = function(e) NULL)
+} # loads stat jason
+```
+
+```{r mantel helper, include=FALSE}
+read_mantel <- function(tree_name) {
+  path <- file.path(results_dir, tree_name, "mantel.tsv")
+  if (!file.exists(path)) return(NULL)
+  safe <- tryCatch(
+    readr::read_tsv(path, show_col_types = FALSE),
+    error = function(e) NULL
+  )
+  if (is.null(safe) || nrow(safe) == 0) {
+    tibble(
+      feature = character(),
+      r = numeric(),
+      p = numeric(),
+      method = character(),
+      permutations = integer(),
+      n = integer()
+    )
+  } else {
+    safe
+  }
+} # reads mantel.tsv
+```
+
+```{r tree specs, include=FALSE}
+get_tree_spec <- function(name) {
+  if (length(tree_specs) == 0) return(NULL)
+  for (tree in tree_specs) {
+    if (identical(tree$name, name)) return(tree)
+  }
+  NULL
+} # gets specs from config.yaml
+
+tree_spec <- get_tree_spec(tree_name)
+tree_stats <- read_stats(tree_name)
+tree_mantel <- read_mantel(tree_name)
+tree_path <- file.path(results_dir, tree_name, "tree.nwk")
+tree_obj <- read_tree_file(tree_path)
+tree_tip_count <- if (!is.null(tree_obj)) {
+  length(tree_obj$tip.label)
+} else {
+  NA_integer_
+}
+tree_fig_height <- if (is.na(tree_tip_count)) 5 else max(5, tree_tip_count * 0.25)
+combined_stats <- dplyr::bind_rows(
+  kv_table(tree_spec, "Spec"),
+  kv_table(tree_stats, "Stat")
+)
+```
+
+# Results for `r translate_label(tree_name, escape = TRUE)` {.tabset}
+
+## Tree
+```{r tree-plot, echo=FALSE, fig.width=6, fig.height=tree_fig_height}
+if (is.null(tree_obj)) {
+  cat("Tree file missing or unreadable.\n\n")
+} else {
+  ape::plot.phylo(tree_obj,
+                  main = translate_label(tree_name, escape = FALSE),
+                  cex = 0.9)
+}
+```
+
+## Tree build summary
+```{r stats-specs, echo=FALSE}
+if (nrow(combined_stats) == 0) {
+  cat("no specifications or statistics available.\n\n")
+} else {
+  display_tbl <- combined_stats |>
+    mutate(
+      category = escape_md(category),
+      metric = escape_md(metric),
+      value = escape_md(value)
+    )
+  knitr::kable(display_tbl,
+               col.names = c("type", "metric", "value"),
+               caption = "tree build summary",
+               escape = FALSE)
+}
+```
+
+## Mantel metrics
+```{r mantel-table, echo=FALSE}
+if (is.null(tree_mantel)) {
+  cat("mantel table missing.\n\n")
+} else if (nrow(tree_mantel) == 0) {
+  cat("mantel tests were not performed.\n\n")
+} else {
+  knitr::kable(tree_mantel, caption = "mantel analysis results")
+}
+```

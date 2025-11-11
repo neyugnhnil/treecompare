@@ -1,0 +1,43 @@
+# Bytecode / caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Snakemake + workflow artefacts
+.snakemake/
+**/.snakemake/
+results/
+**/results/
+resources/
+**/resources/
+logs/
+**/logs/
+*.log
+
+# R artefacts
+.Rhistory
+.RData
+.Rproj.user/
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.code-workspace
+.DS_Store
+
+# Environments
+.env
+.venv/
+venv/
+env/
+.conda/
+.mamba/
+
+# Misc
+*.swp
+*.tmp

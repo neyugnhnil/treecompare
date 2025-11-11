@@ -1,0 +1,30 @@
+# workflow/sanitize.rules
+# defines sanitize_inputs rule
+# this rule sanitizes user's fasta and optional metafile, producing resources used everywhere else
+# the list of resources is defined here as targets, and the sanitization itself is done by sanitize_inputs.py
+
+import os
+from workflow.common import SANITIZED_FASTA, SANITIZED_META, HEADER_MAP # paths for sanitized resources
+
+rule sanitize_inputs:
+    input:
+        fasta = lambda wc: config["data"]["fasta"]
+    output:
+        fasta = SANITIZED_FASTA,
+        meta  = SANITIZED_META,
+        mapping = HEADER_MAP
+    params:
+        gap = lambda wc: config["data"].get("gap_symbol", "-"),
+        meta = lambda wc: config["data"].get("metafile") or ""
+    conda:
+        ENV_YAML
+    shell:
+        r"""
+        python {SCRIPTS_DIR}/sanitize_inputs.py \
+          --fasta {input.fasta} \
+          --gap '{params.gap}' \
+          --out-fasta {output.fasta} \
+          --map-out {output.mapping} \
+          --meta "{params.meta}" \
+          --out-meta {output.meta}
+        """

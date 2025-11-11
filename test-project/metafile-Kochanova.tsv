@@ -1,0 +1,28 @@
+sample_id	locality	shore	substrate	L_W_abdomen	L_W_rami	COI_lineage
+Hi_94_Slyudanka_W2	Slyudyanka	W	stones	2.08333333333333	1.37142857142857	CE
+Hi_243_Listvyanka_W2	Listvyanka	W	stones	2.28	1.15909090909091	CW
+Hi_6a_Sakhiurta_W2	Sakhyurta	W	sand	2.5	1.375	RW2
+Hi_161_Barguzin_E1	Barguzin	E	stones	2.65	1.1	CE
+Hi_146_Turka_E1	Turka	E	stones	3.05555555555556	1.33333333333333	CE
+Hi_126_Tankhoi_E1	Tankhoi	E	stones	2.63157894736842	1.2	CE
+Hi_185_Monakhovo_E1	Monakhovo	E	sand	2.76470588235294	1.25714285714286	CE
+Hi_171_Kubulik_E1	Kurbulik	E	sand	2.65	1.05	RE
+Hi_139_Babushkin_E1	Babushkin	E	stones	2.27272727272727	1	
+Hi_6u_Mushkanii_E3	Malyi Ushkanii island	E	stones			CW
+Hi_175_Kurbulik_E1_E3	Kurbulik	E	sand	2.65	1.05	RE
+Hi_156_Maksimikha_E1_E3	Maksimikha	E	stones	2.5	1.09090909090909	CE
+Hi_3kt_Kotelnikovskii_W3	Kotelnikovskii cape	W	stones			
+Hi_1Mz_Muzhinai_W1_W3	Muzhinai cape	W	stones			CW
+Hi_2kt_Kotelnikovskii_W1_W3	Kotelnikovskii cape	W	stones			
+Hi_95_Slyudanka_W3	Slyudyanka	W	stones	2.08333333333333	1.37142857142857	CE
+Hi_60_Bkoty_W3	Bolshie Koty	W	sand			CW
+Hi_1ar_Arul_W1_W3	Arul cape	W	stones+sand			CW
+Hi_4kt_Kotelnikovskii_W2_W3	Kotelnikovskii cape	W	stones			
+Hi_5el_Elokhin_W1	Elokhin	W	stones	2.56	1.15909090909091	CW
+Hi_114_Tankhoi_W1	Tankhoi	W	stones	2.63157894736842	1.2	CE
+Hi_5rt_Rytyi_W1	Rytyi	W	stones+sand	2.60869565217391	1.5	CW
+Hi_3u_Mushkanii_W1	Malyi Ushkanii island	W	stones			CW
+Hi_1Bk_Baklanii_W1	Baklanii cape	W	stones			CW
+Hi_244_Listvyanka_W1	Listvyanka	W	stones	2.28	1.15909090909091	CW
+Hi_102_Baikalsk_W1	Baikalsk	W	stones+sand	2.33333333333333	1.275	CW
+Hi_42_Khuzhir_W1	Khuzhir, Olkhon island	W	stones			CW

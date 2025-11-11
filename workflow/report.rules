@@ -1,0 +1,42 @@
+# workflow/report.rules
+# defines report_rmarkdown rule
+# once everything needed exists, passes all outputs to scripts/render_report.R
+# which in turn generates overall and per-tree reports with report.Rmd and tree_report.Rmd as templates
+
+import os
+from workflow.common import tree_names, HEADER_MAP
+
+TREE_LIST = tree_names(config)
+REPORT_RMD = os.path.join(REPO_DIR, "scripts", "report.Rmd")
+TREE_REPORT_RMD = os.path.join(REPO_DIR, "scripts", "tree_report.Rmd")
+RENDER_SCRIPT = os.path.join(REPO_DIR, "scripts", "render_report.R")
+CFG_PATH = globals().get("PROJECT_CONFIG", "config.yaml")
+RESULTS_PATH = "results"
+MAP_PATH = HEADER_MAP
+OUTPUT_DIR = "results/report"
+
+rule report_rmarkdown:
+    input:
+        rmd = REPORT_RMD,
+        treermd = TREE_REPORT_RMD,
+        renderer = RENDER_SCRIPT,
+        trees = expand("results/{n}/tree.nwk", n=TREE_LIST),
+        stats = expand("results/{n}/stats.json", n=TREE_LIST),
+        mantel= expand("results/{n}/mantel.tsv", n=TREE_LIST),
+        mapping = MAP_PATH
+    output:
+        html  = "results/report/index.html"
+    conda:
+        ENV_YAML
+    shell:
+        r"""
+        Rscript {input.renderer} \
+          --project-dir "$(pwd)" \
+          --rmd {input.rmd} \
+          --treermd {input.treermd} \
+          --output-dir {OUTPUT_DIR} \
+          --output-file index.html \
+          --results {RESULTS_PATH} \
+          --config {CFG_PATH} \
+          --mapping {MAP_PATH}
+        """

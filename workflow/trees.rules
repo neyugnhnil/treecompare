@@ -1,0 +1,43 @@
+# workflow/trees.rules
+# defines build_tree rule
+# builds a single tree, input is fasta, output is the tree nwk and stats json
+# provides what dispatcher.py needs: config file, tree name, FASTA, output paths, optional seed.
+
+import os
+from workflow.common import tree_starter_inputs, SANITIZED_FASTA
+
+STARTER_TREE_INPUTS = tree_starter_inputs(config)
+PROJECT_CONFIG_PATH = globals().get("PROJECT_CONFIG", "config.yaml")
+DISPATCHER = os.path.join(SCRIPTS_DIR, "dispatcher.py")
+
+rule build_tree:
+    input:
+        fasta = SANITIZED_FASTA,
+        starter = lambda wc: STARTER_TREE_INPUTS.get(wc.tree, [])
+        # snakemake will have dependent trees wait for needed .nwk before dispatch
+    output:
+        tree  = "results/{tree}/tree.nwk",
+        stats = "results/{tree}/stats.json"
+    params:
+        tree_name = "{tree}",
+        cfg = PROJECT_CONFIG_PATH,
+        seed_arg = lambda wc: (
+            f"--seed {config.get('runtime', {}).get('seed')}"
+            if config.get("runtime", {}).get("seed") is not None else ""
+        ) 
+    log:
+        "results/{tree}/build.log"
+    conda:
+        ENV_YAML
+    shell:
+        r"""
+        mkdir -p results/{params.tree_name}
+        python {DISPATCHER} \
+          --config {params.cfg} \
+          --tree-name {params.tree_name} \
+          --fasta {input.fasta} \
+          --out-tree {output.tree} \
+          --out-stats {output.stats} \
+          {params.seed_arg} \
+          > {log} 2>&1
+        """

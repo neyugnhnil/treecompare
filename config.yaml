@@ -1,0 +1,64 @@
+### treecompare config.yaml
+
+# Input data
+data:
+  # REQUIRED: path to an already-aligned FASTA with >=3 distinct sequences.
+  fasta: "aligned.fasta"
+  # OPTIONAL: TSV linking samples to features. First column must be FASTA headers. Must have header row.
+  metafile: null
+  # REQUIRED: sequence type: "dna" or "aa"
+  datatype: "dna"
+  # REQUIRED: gap symbol present in the FASTA alignment (default "-")
+  gap_symbol: "-"
+  # OPTIONAL: output post-alignment quality check report?
+  post_alignment_qc: false
+
+runtime:
+  seed: 12345   # positive integer; omit or null to let tools pick their own RNG
+
+# OPTIONAL: topological distance Mantel analysis
+mantel:
+  enabled: true
+  permutations: 1000
+  method: "spearman" # "spearman" or "pearson"
+
+# Trees to build (any number; order matters for starter dependencies)
+# Each entry must have 1) an unique "name" and 2) a "method".
+# Methods: UPGMA, NJ, MP, ML, BI
+
+# Per-method parameters:
+#  UPGMA: model (optional; defaults DNA=JC69, AA=JTT)
+#  NJ: model (optional; defaults DNA=JC69, AA=JTT)
+#  MP: starter (optional; default=random)
+#  ML: model (optional; defaults DNA=GTR+F+R4, AA=LG+F+R4), starter (optional; default=random) 
+#  BI: model (optional; defaults DNA=GTR+G, AA=LG), starter (optional; default=random), burninfrac
+
+trees:
+  - name: "upgmatree"
+    method: "UPGMA"
+    model: "JC69"
+
+  - name: "njtree"
+    method: "NJ"
+    model: "JC69"
+
+  - name: "mltree"
+    method: "ML"
+    model: "GTR+F+R4"
+    starter: "upgmatree"
+
+  - name: "mptree"
+    method: "MP"
+    starter: "njtree"
+
+  - name: "bitree1"
+    method: "BI"
+    model: "GTR+G"
+    starter: "random"
+    burninfrac: 0.25
+
+  - name: "bitree2"
+    method: "BI"
+    model: "GTR+G"
+    starter: "njtree"
+    burninfrac: 0.25

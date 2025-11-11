@@ -1,0 +1,36 @@
+# workflow/qc.rules
+# defines post_alignment_qc rule
+# runs AMAS.py summary on sanitized FASTA
+
+import os
+from workflow.common import SANITIZED_FASTA, QC_REPORT
+
+AMAS = "AMAS.py"
+
+rule post_alignment_qc:
+    input:
+        fasta = SANITIZED_FASTA
+    output:
+        report = QC_REPORT
+    params:
+        amas = AMAS,
+        datatype = lambda wc: config.get("data", {}).get("datatype", "dna").lower()
+    conda:
+        ENV_YAML
+    shell:
+        r"""
+        mkdir -p "$(dirname {output.report})"
+        tmpdir="$(mktemp -d)"
+        trap 'rm -rf "$tmpdir"' EXIT
+        {params.amas} summary \
+          -f fasta \
+          -d {params.datatype} \
+          -i {input.fasta} \
+          -o "$tmpdir/amas_qc.csv" \
+          >/dev/null
+        if [[ -s "$tmpdir/amas_qc.csv" ]]; then
+            cp "$tmpdir/amas_qc.csv" {output.report}
+        else
+            printf "AMAS summary failed for {input.fasta}\n" > {output.report}
+        fi
+        """

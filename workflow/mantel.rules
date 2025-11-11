@@ -1,0 +1,37 @@
+# workflow/mantel.rules
+# defines mantel_for_tree rule
+# snakemake will always schedule mantel_for_tree
+# if mantel is disabled or metafile is missing/invalid, writes header-only placeholder tsv
+# if mantel is enabled and metafile checks out, run mantel.R with tree, metadata, and specs
+
+import os
+
+MANTEL_SCRIPT = os.path.join(SCRIPTS_DIR, "mantel.R")
+from workflow.common import SANITIZED_META
+
+rule mantel_for_tree:
+    input:
+        tree = lambda wc: f"results/{wc.tree}/tree.nwk",
+        meta = SANITIZED_META
+    output:
+        tsv  = "results/{tree}/mantel.tsv"
+    params:
+        enabled = lambda wc: bool(config.get("mantel", {}).get("enabled", False)),
+        method  = lambda wc: config.get("mantel", {}).get("method", "spearman"),
+        perms   = lambda wc: int(config.get("mantel", {}).get("permutations", 1000))
+    conda:
+        ENV_YAML
+    shell:
+        r"""
+        mkdir -p "$(dirname {output.tsv})"
+        if [[ "{params.enabled}" != "True" ]] || [[ ! -s "{input.meta}" ]]; then
+            printf "feature\tr\tp\tmethod\tpermutations\tn\n" > {output.tsv}
+        else
+            Rscript {MANTEL_SCRIPT} \
+              --tree {input.tree} \
+              --meta {input.meta} \
+              --method {params.method} \
+              --permutations {params.perms} \
+              --out {output.tsv}
+        fi
+        """

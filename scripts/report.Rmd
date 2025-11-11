@@ -1,0 +1,166 @@
+---
+title: "treecompare Report"
+output: 
+  html_document:
+    theme: flatly
+params:
+  results_dir: "results"
+  config_path: "config.yaml"
+  mapping_path: "resources/header_map.tsv"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(jsonlite)
+library(tibble)
+library(dplyr)
+library(purrr)
+library(yaml)
+library(readr)
+library(rlang)
+library(ape)
+library(knitr)
+```
+
+```{r config data, include=FALSE}
+# get config file and specs
+cfg <- tryCatch(
+  yaml::read_yaml(params$config_path),
+  error = function(e) NULL
+)
+tree_specs <- cfg$trees %||% list()
+results_dir <- params$results_dir
+```
+
+```{r mapping  helpers, include=FALSE}
+
+# map sanitized labels to original names
+mapping_tbl <- tryCatch(
+  readr::read_tsv(
+    params$mapping_path,
+    col_names = c("sanitized", "original"),
+    show_col_types = FALSE
+  ),
+  error = function(e) {
+    tibble(
+      sanitized = character(),
+      original = character()
+    )
+  }
+)
+lookup <- setNames(mapping_tbl$original, mapping_tbl$sanitized)
+
+escape_md <- function(text) {
+  if (length(text) == 0) return(text)
+  text <- as.character(text)
+  text <- gsub("\\\\", "\\\\\\\\", text)
+  gsub("([*_`|])", "\\\\\\1", text, perl = TRUE)
+} # goes in translate_label
+translate_label <- function(x, escape = TRUE) {
+  label <- lookup[x]
+  label <- unname(label)[1]
+  if (is.na(label) || length(label) == 0) {
+    label <- x
+  }
+  if (escape) escape_md(label) else label
+} # parses markdown-sensitive characters in labels
+```
+
+```{r make summary table , include=FALSE}
+tree_summary_table <- function(trees) {
+  if (length(trees) == 0) {
+    return(tibble(
+      tree = character(),
+      label = character(),
+      method = character(),
+      model = character(),
+      starter = character(),
+      report = character(),
+      specs = character()
+    ))
+  }
+  purrr::map_dfr(
+    trees,
+    function(tree) {
+      nm <- tree$name %||% NA_character_
+      method <- tree$method %||% ""
+      model <- tree$model %||% ""
+      starter <- tree$starter %||% ""
+      burnin <- tree$burninfrac %||% ""
+      extras <- tree
+      extras$name <- NULL
+      known <- c("method", "model", "starter", "burninfrac")
+      extras[known] <- NULL
+      extra_specs <- if (length(extras) == 0) "" else {
+        paste(
+          sprintf(
+            "%s=%s",
+            names(extras),
+            vapply(
+              extras,
+              function(x) paste(as.character(x), collapse = ", "),
+              character(1)
+            )
+          ),
+          collapse = "; "
+        )
+      }
+      if (nzchar(burnin)) {
+        extra_specs <- paste(
+          c(extra_specs, sprintf("burninfrac=%s", burnin)),
+          collapse = "; "
+        )
+        extra_specs <- trimws(gsub("^;\\s*", "", extra_specs))
+      }
+      tibble(
+        tree = sprintf("`%s`", nm),
+        label = translate_label(nm),
+        method = escape_md(method),
+        model = escape_md(model),
+        starter = escape_md(starter),
+        report = sprintf("`%s`", sprintf("%s.html", nm)),
+        specs = if (nzchar(extra_specs)) escape_md(extra_specs) else ""
+      )
+    }
+  )
+}
+```
+
+- Project config: `r params$config_path`
+- Results directory: `r params$results_dir`
+- Generated: `r format(Sys.time(), "%Y-%m-%d %H:%M")`
+
+# Summary {.tabset}
+
+## Name Mapping
+
+```{r mapping-tab}
+if (nrow(mapping_tbl) == 0) {
+  cat("No sanitized name mapping available.")
+} else {
+  mapping_display <- mapping_tbl |>
+    mutate(
+      sanitized = sprintf("`%s`", sanitized),
+      original = sprintf("`%s`", escape_md(original))
+    )
+  knitr::kable(mapping_display,
+               col.names = c("Sanitized", "Original"),
+               caption = "Taxon name mapping",
+               escape = FALSE)
+}
+```
+
+## Trees
+
+```{r tree-list}
+summary_tbl <- tree_summary_table(tree_specs)
+if (nrow(summary_tbl) == 0) {
+  cat("No trees were defined in the configuration.")
+} else {
+  knitr::kable(summary_tbl,
+               col.names = c("Tree", "Display Label", "Method", "Model",
+                             "Starter", "Report File", "Extra Specs"),
+               caption = "Requested trees and generated reports",
+               escape = FALSE)
+}
+```
